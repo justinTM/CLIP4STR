@@ -224,7 +224,7 @@ class VisionTransformer(nn.Module):
         """
         Args:
             cls: if False, return all features of all tokens
-            projection: 
+            projection:
         """
         x = self.conv1(x)  # shape = [*, width, grid, grid]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
@@ -243,7 +243,7 @@ class VisionTransformer(nn.Module):
                 x = x @ self.proj
         else:
             # NEW ADDED CODE
-            # here we need to output all tokens 
+            # here we need to output all tokens
             x = self.ln_post(x)
             if self.proj is not None and projection:
                 x = torch.matmul(x, self.proj)
@@ -418,13 +418,14 @@ def convert_weights(model: nn.Module):
 
 
 def build_model(state_dict: dict):
-    vit = "visual.proj" in state_dict
+    namespace = "clip_model." if "clip_model.visual.proj" in state_dict else ""
+    vit = f"{namespace}visual.proj" in state_dict
 
     if vit:
-        vision_width = state_dict["visual.conv1.weight"].shape[0]
-        vision_layers = len([k for k in state_dict.keys() if k.startswith("visual.") and k.endswith(".attn.in_proj_weight")])
-        vision_patch_size = state_dict["visual.conv1.weight"].shape[-1]
-        grid_size = round((state_dict["visual.positional_embedding"].shape[0] - 1) ** 0.5)
+        vision_width = state_dict[f"{namespace}visual.conv1.weight"].shape[0]
+        vision_layers = len([k for k in state_dict.keys() if k.startswith(f"{namespace}visual.") and k.endswith(".attn.in_proj_weight")])
+        vision_patch_size = state_dict[f"{namespace}visual.conv1.weight"].shape[-1]
+        grid_size = round((state_dict[f"{namespace}visual.positional_embedding"].shape[0] - 1) ** 0.5)
         image_resolution = vision_patch_size * grid_size
     else:
         counts: list = [len(set(k.split(".")[2] for k in state_dict if k.startswith(f"visual.layer{b}"))) for b in [1, 2, 3, 4]]
@@ -435,12 +436,12 @@ def build_model(state_dict: dict):
         assert output_width ** 2 + 1 == state_dict["visual.attnpool.positional_embedding"].shape[0]
         image_resolution = output_width * 32
 
-    embed_dim = state_dict["text_projection"].shape[1]
-    context_length = state_dict["positional_embedding"].shape[0]
-    vocab_size = state_dict["token_embedding.weight"].shape[0]
-    transformer_width = state_dict["ln_final.weight"].shape[0]
+    embed_dim = state_dict[f"{namespace}text_projection"].shape[1]
+    context_length = state_dict[f"{namespace}positional_embedding"].shape[0]
+    vocab_size = state_dict[f"{namespace}token_embedding.weight"].shape[0]
+    transformer_width = state_dict[f"{namespace}ln_final.weight"].shape[0]
     transformer_heads = transformer_width // 64
-    transformer_layers = len(set(k.split(".")[2] for k in state_dict if k.startswith("transformer.resblocks")))
+    transformer_layers = len(set(k.split(".")[2] for k in state_dict if k.startswith(f"{namespace}transformer.resblocks")))
 
     model = CLIP(
         embed_dim,
@@ -453,5 +454,25 @@ def build_model(state_dict: dict):
             del state_dict[key]
 
     convert_weights(model)
+
+    state_dict = {k.replace(namespace, ""): v for k, v in state_dict.items()
+                  if not f"visual_decoder" in k
+                  and not f"cross_decoder" in k
+                  and not k.startswith(f"{namespace}transformer.resblocks.1")
+                  and not k.startswith(f"{namespace}transformer.resblocks.2")
+                  and not k.startswith(f"{namespace}transformer.resblocks.3")
+                  and not k.startswith(f"{namespace}transformer.resblocks.4")
+                  and not k.startswith(f"{namespace}transformer.resblocks.5")
+                  and not k.startswith(f"{namespace}transformer.resblocks.6")
+                  and not k.startswith(f"{namespace}transformer.resblocks.7")
+                  and not k.startswith(f"{namespace}transformer.resblocks.8")
+                  and not k.startswith(f"{namespace}transformer.resblocks.9")
+                  and not k.startswith(f"{namespace}transformer.resblocks.10")
+                  and not k.startswith(f"{namespace}transformer.resblocks.11")
+                  }
+    with open("state_dict.txt", "w") as f:
+        for k in state_dict:
+            f.write(f"{k}\n")
+
     model.load_state_dict(state_dict)
     return model.eval()

@@ -18,9 +18,10 @@ from strhub.models.base import CrossEntropySystem
 from .modules import DecoderLayer, Decoder, modify_attn_mask
 
 
-# an alternative choice when the input argument is not valid 
+# an alternative choice when the input argument is not valid
 # CLIP_PATH = '/PUT/YOUR/PATH/HERE/pretrained/clip''
-CLIP_PATH = '/home/shuai/pretrained/clip'
+# CLIP_PATH = '/home/shuai/pretrained/clip'
+CLIP_PATH = "checkpoints/pretrained/clip"
 if not os.path.exists(CLIP_PATH):
     CLIP_PATH = '/home/shuzhao/Data/pretrained/clip'
 assert os.path.exists(CLIP_PATH)
@@ -89,7 +90,7 @@ class VL4STR(CrossEntropySystem):
         decoder_layer = DecoderLayer(vis_embed_dim, dec_num_heads, vis_embed_dim * dec_mlp_ratio, dropout)
         # We don't predict <bos> nor <pad>, so num_classes=len(self.tokenizer) - 2, label length + 1 for <eos>
         self.visual_decoder = Decoder(decoder_layer, dec_depth, norm=nn.LayerNorm(vis_embed_dim),
-                                        embed_dim=vis_embed_dim, 
+                                        embed_dim=vis_embed_dim,
                                         dropout=dropout,
                                         num_classes=len(self.tokenizer) - 2,
                                         charset_size=len(self.tokenizer),
@@ -151,7 +152,7 @@ class VL4STR(CrossEntropySystem):
         return torch.cat([image_features, text_features], dim=1)
 
     def cross_decode(self, prev_logits, tgt: torch.Tensor, memory: torch.Tensor,
-                        tgt_query: Optional[Tensor] = None, tgt_query_mask: Optional[Tensor] = None, 
+                        tgt_query: Optional[Tensor] = None, tgt_query_mask: Optional[Tensor] = None,
                         content_mask: Optional[Tensor] = None, tgt_padding_mask: Optional[Tensor] = None,
                         cross_memory = None):
         if cross_memory is None:
@@ -219,7 +220,7 @@ class VL4STR(CrossEntropySystem):
                 for i in range(crs_num_steps):
                     j = i + 1  # next token index
                     p_i, cross_vec = self.cross_decode(logits, tgt_in[:, :j], memory, tgt_query=crs_pos_queries[:, i:j],
-                                                tgt_query_mask=query_mask[i:j, :j], content_mask=content_mask[:j, :j], cross_memory=cross_memory)                
+                                                tgt_query_mask=query_mask[i:j, :j], content_mask=content_mask[:j, :j], cross_memory=cross_memory)
                     cross_logits.append(p_i)
                     all_cross_vec.append(cross_vec.clone())
                     if j < crs_num_steps:
@@ -497,13 +498,13 @@ class VL4STR(CrossEntropySystem):
             if text_freeze_nlayer >= 12:
                 for n, p in self.clip_model.named_parameters():
                     # exclude visual parameters
-                    if "visual" not in n:                
+                    if "visual" not in n:
                         if "transformer" in n or "token_embedding" in n or "ln_final" in n or "text_projection" in n:
                             p.requires_grad = False
-            
+
             if image_freeze_nlayer >= 12:
                 for n, p in self.clip_model.visual.named_parameters():
-                    p.requires_grad = False               
+                    p.requires_grad = False
 
     def train(self, mode=True):
         """

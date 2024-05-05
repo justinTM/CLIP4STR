@@ -13,4 +13,5 @@ model:
   dec_mlp_ratio: 4
   dec_depth: 1
 
-  clip_pretrained: /PUT/YOUR/PATH/HERE/pretrained/clip/ViT-L-14.pt
+  # clip_pretrained: /PUT/YOUR/PATH/HERE/pretrained/clip/ViT-L-14.pt
+  clip_pretrained: checkpoints/pretrained/clip/clip4str_large_3c9d881b88.pt

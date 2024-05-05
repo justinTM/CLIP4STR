@@ -113,8 +113,23 @@ def load_from_checkpoint(checkpoint_path: str, **kwargs):
         except FileNotFoundError:
             raise InvalidModelError("No configuration found for '{}'".format(experiment)) from None
         model = ModelClass(**config)
-        checkpoint = torch.load(checkpoint_path, map_location='cpu')
-        model.load_state_dict(checkpoint)
+        state_dict = torch.load(checkpoint_path, map_location='cpu')["state_dict"]
+
+        state_dict = {k: v for k, v in state_dict.items()
+                      if not "clip_model.transformer.resblocks.1" in k
+                      and not "clip_model.transformer.resblocks.2" in k
+                      and not "clip_model.transformer.resblocks.3" in k
+                      and not "clip_model.transformer.resblocks.4" in k
+                      and not "clip_model.transformer.resblocks.5" in k
+                      and not "clip_model.transformer.resblocks.6" in k
+                      and not "clip_model.transformer.resblocks.7" in k
+                      and not "clip_model.transformer.resblocks.8" in k
+                      and not "clip_model.transformer.resblocks.9" in k
+                      and not "clip_model.transformer.resblocks.10" in k
+                      and not "clip_model.transformer.resblocks.11" in k
+                      }
+
+        model.load_state_dict(state_dict)
 
     return model
 
